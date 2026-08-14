@@ -801,3 +801,28 @@ header h1 span {
         opacity: 1;
     }
 }
+
+.empty-message {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.error-container {
+    text-align: center;
+    padding: 50px 20px;
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.btn-retry {
+    margin-top: 15px;
+    padding: 8px 16px;
+    background-color: var(--text-primary);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--bg-primary);
+    cursor: pointer;
+    font-weight: 700;
+}
