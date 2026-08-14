@@ -6,6 +6,7 @@ let seccionActual = 'top';
 let filtroEstado = 'todos';
 let busquedaActual = '';
 let mangaSeleccionadoId = null;
+let timerBusqueda = null;
 
 function extraerDatos(item) {
     if (!item) return null;
@@ -96,12 +97,17 @@ function manejarBusqueda(valor) {
     if (btnLimpiar) {
         btnLimpiar.style.display = valor ? 'flex' : 'none';
     }
-    buscarMangas();
+
+    clearTimeout(timerBusqueda);
+    timerBusqueda = setTimeout(() => {
+        buscarMangas();
+    }, 400);
 }
 
 function manejarTeclaBusqueda(event) {
     if (event.key === 'Enter') {
         event.preventDefault();
+        clearTimeout(timerBusqueda);
         buscarMangas();
     }
 }
@@ -112,6 +118,7 @@ function limpiarBusqueda() {
     busquedaActual = '';
     let btnLimpiar = document.getElementById('clear-search');
     if (btnLimpiar) btnLimpiar.style.display = 'none';
+    clearTimeout(timerBusqueda);
     buscarMangas();
 }
 
