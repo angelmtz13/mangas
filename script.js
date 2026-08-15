@@ -60,6 +60,8 @@ function extraerDatosKitsu(item) {
     };
 }
 
+let todosLosMangasTop = [];
+
 async function cargarTopMangas() {
     mostrarCargando(true);
     let tituloSeccion = document.getElementById('section-title');
@@ -68,7 +70,8 @@ async function cargarTopMangas() {
     try {
         let respuesta = await fetch(`${API_URL}/top/manga`);
         let datos = await respuesta.json();
-        listaMangas = (datos.data || []).map(extraerDatos);
+        listaMangas = (datos.data || []).map(extraerDatos).filter(Boolean);
+        todosLosMangasTop = [...listaMangas];
         mostrarCargando(false);
         renderizarGrid(listaMangas);
     } catch (error) {
@@ -96,43 +99,44 @@ async function buscarMangas() {
 
     mostrarCargando(true);
 
-    try {
-        let respuesta = await fetch(`${API_URL}/manga?q=${encodeURIComponent(texto)}&limit=24`);
-        if (!respuesta.ok) throw new Error('Error Jikan API');
-        let datos = await respuesta.json();
+    let resultados = [];
 
-        if (datos.data && Array.isArray(datos.data) && datos.data.length > 0) {
-            listaMangas = datos.data.map(extraerDatos);
-            mostrarCargando(false);
-            renderizarGrid(listaMangas);
-            return;
+    try {
+        let resKitsu = await fetch(`https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(texto)}&page[limit]=24`);
+        if (resKitsu.ok) {
+            let datosKitsu = await resKitsu.json();
+            if (datosKitsu.data && datosKitsu.data.length > 0) {
+                resultados = datosKitsu.data.map(extraerDatosKitsu).filter(Boolean);
+            }
         }
-        throw new Error('Sin resultados Jikan');
-    } catch (e) {
+    } catch (e) {}
+
+    if (resultados.length === 0) {
         try {
-            let resKitsu = await fetch(`https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(texto)}&page[limit]=24`);
-            if (resKitsu.ok) {
-                let datosKitsu = await resKitsu.json();
-                if (datosKitsu.data && datosKitsu.data.length > 0) {
-                    listaMangas = datosKitsu.data.map(extraerDatosKitsu);
-                    mostrarCargando(false);
-                    renderizarGrid(listaMangas);
-                    return;
+            let respuesta = await fetch(`${API_URL}/manga?q=${encodeURIComponent(texto)}&limit=24`);
+            if (respuesta.ok) {
+                let datos = await respuesta.json();
+                if (datos.data && Array.isArray(datos.data) && datos.data.length > 0) {
+                    resultados = datos.data.map(extraerDatos).filter(Boolean);
                 }
             }
-        } catch (errKitsu) {}
+        } catch (e) {}
+    }
 
-        mostrarCargando(false);
-        let filtradosLocal = listaMangas.filter(m => 
+    if (resultados.length === 0) {
+        resultados = todosLosMangasTop.filter(m => 
             (m.title || '').toLowerCase().includes(texto.toLowerCase()) || 
             (m.title_english || '').toLowerCase().includes(texto.toLowerCase())
         );
+    }
 
-        if (filtradosLocal.length > 0) {
-            renderizarGrid(filtradosLocal);
-        } else {
-            mostrarError('No se encontraron resultados para tu búsqueda.');
-        }
+    listaMangas = resultados;
+    mostrarCargando(false);
+
+    if (listaMangas.length > 0) {
+        renderizarGrid(listaMangas);
+    } else {
+        mostrarError('No se encontraron resultados para tu búsqueda.');
     }
 }
 
