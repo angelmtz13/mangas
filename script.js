@@ -39,23 +39,29 @@ function extraerDatos(item) {
     };
 }
 
-function extraerDatosKitsu(item) {
+function extraerDatosAniList(item) {
     if (!item) return null;
-    let attr = item.attributes || {};
-    let poster = attr.posterImage?.medium || attr.posterImage?.large || attr.posterImage?.original || 'https://via.placeholder.com/225x320?text=Sin+Imagen';
-    let score = attr.averageRating ? (parseFloat(attr.averageRating) / 10).toFixed(1) : 0;
+
+    let title = item.title?.english || item.title?.romaji || 'Sin título';
+    let titleEn = item.title?.romaji || item.title?.english || '';
+    let image = item.coverImage?.extraLarge || item.coverImage?.large || item.coverImage?.medium || 'https://via.placeholder.com/225x320?text=Sin+Imagen';
+    let score = item.meanScore ? (item.meanScore / 10).toFixed(1) : 0;
+    let generos = Array.isArray(item.genres) ? item.genres.slice(0, 2) : ['Manga'];
+    let desc = item.description 
+        ? item.description.replace(/<[^>]*>?/gm, '') 
+        : 'Sin descripción disponible.';
 
     return {
-        id: `kitsu-${item.id}`,
-        title: attr.canonicalTitle || attr.titles?.en || 'Sin título',
-        title_english: attr.titles?.en || attr.canonicalTitle || '',
-        image_url: poster,
-        score: parseFloat(score),
-        genres: ['Manga'],
-        synopsis: attr.synopsis || attr.description || 'Sin descripción disponible.',
-        chapters: attr.chapterCount || 'En publicación',
-        volumes: attr.volumeCount || 'En publicación',
-        status_api: attr.status || 'Desconocido',
+        id: `al-${item.id}`,
+        title: title,
+        title_english: titleEn,
+        image_url: image,
+        score: parseFloat(score) || 0,
+        genres: generos,
+        synopsis: desc,
+        chapters: item.chapters || 'En publicación',
+        volumes: item.volumes || 'En publicación',
+        status_api: item.status || 'Desconocido',
         authors: []
     };
 }
@@ -102,11 +108,47 @@ async function buscarMangas() {
     let resultados = [];
 
     try {
-        let resKitsu = await fetch(`https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(texto)}&page[limit]=24`);
-        if (resKitsu.ok) {
-            let datosKitsu = await resKitsu.json();
-            if (datosKitsu.data && datosKitsu.data.length > 0) {
-                resultados = datosKitsu.data.map(extraerDatosKitsu).filter(Boolean);
+        let query = `
+            query ($search: String) {
+                Page(perPage: 24) {
+                    media(search: $search, type: MANGA) {
+                        id
+                        title {
+                            romaji
+                            english
+                        }
+                        coverImage {
+                            extraLarge
+                            large
+                        }
+                        meanScore
+                        genres
+                        description
+                        chapters
+                        volumes
+                        status
+                    }
+                }
+            }
+        `;
+
+        let resAniList = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                query: query,
+                variables: { search: texto }
+            })
+        });
+
+        if (resAniList.ok) {
+            let datosAniList = await resAniList.json();
+            let items = datosAniList.data?.Page?.media || [];
+            if (items.length > 0) {
+                resultados = items.map(extraerDatosAniList).filter(Boolean);
             }
         }
     } catch (e) {}
