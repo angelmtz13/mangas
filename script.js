@@ -37,6 +37,8 @@ function extraerDatos(item) {
         status_api: item.status || 'Desconocido',
         authors: autores
     };
+}
+
 function extraerDatosKitsu(item) {
     if (!item) return null;
     let attr = item.attributes || {};
