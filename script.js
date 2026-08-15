@@ -37,6 +37,25 @@ function extraerDatos(item) {
         status_api: item.status || 'Desconocido',
         authors: autores
     };
+function extraerDatosKitsu(item) {
+    if (!item) return null;
+    let attr = item.attributes || {};
+    let poster = attr.posterImage?.medium || attr.posterImage?.large || attr.posterImage?.original || 'https://via.placeholder.com/225x320?text=Sin+Imagen';
+    let score = attr.averageRating ? (parseFloat(attr.averageRating) / 10).toFixed(1) : 0;
+
+    return {
+        id: `kitsu-${item.id}`,
+        title: attr.canonicalTitle || attr.titles?.en || 'Sin título',
+        title_english: attr.titles?.en || attr.canonicalTitle || '',
+        image_url: poster,
+        score: parseFloat(score),
+        genres: ['Manga'],
+        synopsis: attr.synopsis || attr.description || 'Sin descripción disponible.',
+        chapters: attr.chapterCount || 'En publicación',
+        volumes: attr.volumeCount || 'En publicación',
+        status_api: attr.status || 'Desconocido',
+        authors: []
+    };
 }
 
 async function cargarTopMangas() {
@@ -76,18 +95,42 @@ async function buscarMangas() {
     mostrarCargando(true);
 
     try {
-        let respuesta = await fetch(`${API_URL}/manga?q=${encodeURIComponent(texto)}&limit=24&sfw=true`);
+        let respuesta = await fetch(`${API_URL}/manga?q=${encodeURIComponent(texto)}&limit=24`);
+        if (!respuesta.ok) throw new Error('Error Jikan API');
         let datos = await respuesta.json();
-        listaMangas = (datos.data || []).map(extraerDatos);
-        mostrarCargando(false);
 
-        if (listaMangas.length > 0) {
+        if (datos.data && Array.isArray(datos.data) && datos.data.length > 0) {
+            listaMangas = datos.data.map(extraerDatos);
+            mostrarCargando(false);
             renderizarGrid(listaMangas);
+            return;
+        }
+        throw new Error('Sin resultados Jikan');
+    } catch (e) {
+        try {
+            let resKitsu = await fetch(`https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(texto)}&page[limit]=24`);
+            if (resKitsu.ok) {
+                let datosKitsu = await resKitsu.json();
+                if (datosKitsu.data && datosKitsu.data.length > 0) {
+                    listaMangas = datosKitsu.data.map(extraerDatosKitsu);
+                    mostrarCargando(false);
+                    renderizarGrid(listaMangas);
+                    return;
+                }
+            }
+        } catch (errKitsu) {}
+
+        mostrarCargando(false);
+        let filtradosLocal = listaMangas.filter(m => 
+            (m.title || '').toLowerCase().includes(texto.toLowerCase()) || 
+            (m.title_english || '').toLowerCase().includes(texto.toLowerCase())
+        );
+
+        if (filtradosLocal.length > 0) {
+            renderizarGrid(filtradosLocal);
         } else {
             mostrarError('No se encontraron resultados para tu búsqueda.');
         }
-    } catch (error) {
-        mostrarError('Ocurrió un error al buscar el manga.');
     }
 }
 
